@@ -104,7 +104,9 @@ In this task, you will configure Web App deployment settings. Deployment setting
 
     >**Note:** Make sure you are on the staging slot blade (instead of the production slot).
 
-1. Under **SCM Basic Auth Publishing Credentials**, enable the checkbox and select **Apply**. Next, select **Deployment Center** then **Settings**.
+1. Under **SCM Basic Auth Publishing Credentials**, enable the checkbox and select **Apply**. 
+
+1. Ensure the **Deployment** section of the service menu is expanded, and select **Deployment Center** then **Settings**.
 
 1. If an alert banner appears stating "SCM basic authentication is disabled for your app", select **Enable here** and complete the steps to enable it. 
    

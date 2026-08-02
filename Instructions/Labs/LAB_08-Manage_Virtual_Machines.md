@@ -143,7 +143,9 @@ In this task, you will scale a virtual machine by adjusting its size to a differ
 
     >**Note**: Detaching removes the disk from the VM but keeps it in storage for later use.
 
-1. Search for and select `Disks`. From the list of disks, select the **vm1-disk1** object.
+1. Using **Global Search**, search for and select `Disks`. 
+
+1. In the **Storage Center | Azure Disks** blade, select the **Resources** tab, and then select the **vm1-disk1** object.
 
     >**Note:** The **Overview** blade also provides performance and usage information for the disk.
 

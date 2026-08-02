@@ -196,6 +196,9 @@ In this task, we will use the new policy definition to remediate any non-complia
     | Setting | Value |
     | --- | --- |
     | Storage account name | *any globally unique combination of between 3 and 24 lower case letters and digits, starting with a letter* |
+    | Primary service | Azure Blob Storage or Azure Data Lake Storage |
+
+    >**Note**: Primary service may be listed as Preferred Storage Type
 
 1. Verify that this time the validation passed and click **Create**.
 

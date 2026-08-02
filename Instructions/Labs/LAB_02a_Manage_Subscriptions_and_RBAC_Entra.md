@@ -70,6 +70,12 @@ In this task, you will create and configure management groups. Management groups
 
    >**Note:** Did you notice the root management group? The root management group is built into the hierarchy to have all management groups and subscriptions fold up to it. This root management group allows for global policies and Azure role assignments to be applied at the directory level. After creating a management group, you would add any subscriptions that should be included in the group. 
 
+1. Sign out of the Azure portal. 
+
+1. Sign in to the **Azure portal** - `https://portal.azure.com`.
+
+    >**Note:** This ensures you do not receive permission errors after creating your new management group.
+
 ## Task 2: Review and assign a built-in Azure role
 
 In this task, you will review the built-in roles and assign the VM Contributor role to a member of the Help Desk. Azure provides a large number of [built-in roles](https://learn.microsoft.com/azure/role-based-access-control/built-in-roles). 
