@@ -1,296 +1,362 @@
 ---
 lab:
-  title: 'Lab 11: Implement Monitoring'
-  module: Administer Monitoring
-  description: Configure Azure Monitor alerts and queries. 
-  duration: 40 minutes
-  level: 300
-  islab: true
-  primarytopics:
-  - Azure
-  - Azure Monitor
+   title: 'Lab 11: Implement Monitoring'
+   module: Administer Monitoring
+   description: Configure Azure Monitor alerts and queries.
+   duration: 45 minutes
+   level: 300
+   islab: true
+   primarytopics:
+   - Azure
+   - Azure Monitor
 ---
 
-# Lab 11 - Implement Monitoring
+# Lab 11: Implement monitoring
 
 ## Lab introduction
 
-In this lab, you learn about Azure Monitor. You learn to create an alert and send it to an action group. You trigger and test the alert and check the activity log.  
+In this lab, you deploy a virtual machine with logs-based monitoring, verify that monitoring data is being collected, create an Activity Log alert and action group, suppress notifications during a maintenance period, and trigger the alert by deleting the virtual machine.
 
-This lab requires an Azure subscription. Your subscription type may affect the availability of features in this lab. You may change the region, but the steps are written using **East US**.
+This lab requires an Azure subscription. Your subscription type can affect feature availability. The steps use **East US**, but you can select another region if necessary.
 
-## Estimated timing: 40 minutes
+## Estimated time
+
+45 minutes
 
 ## Lab scenario
 
-Your organization has migrated their infrastructure to Azure. It is important that Administrators are notified of any significant infrastructure changes. You plan to examine the capabilities of Azure Monitor, including Log Analytics.
+Your organization has migrated infrastructure to Azure. Administrators must be notified of significant infrastructure changes. You plan to use Azure Monitor, Log Analytics, alerts, action groups, and alert processing rules to monitor a virtual machine.
 
-## Architecture diagram
+## Lab tasks
 
-![Diagram of the architecture tasks](../media/az104-lab11-architecture.png)
+- Task 1: Deploy the lab infrastructure.
+- Task 2: Verify monitoring data with Azure Monitor Logs.
+- Task 3: Create an action group.
+- Task 4: Create an Activity Log alert.
+- Task 5: Configure an alert processing rule.
+- Task 6: Trigger and verify the alert.
 
-## Job skills
+## Task 1: Deploy the lab infrastructure
 
-+ Task 1: Use a template to provision an infrastructure.
-+ Task 2: Create an alert.
-+ Task 3: Configure action group notifications.
-+ Task 4: Trigger an alert and confirm it is working.
-+ Task 5: Configure an alert processing rule.
-+ Task 6: Use Azure Monitor log queries.
+In this task, you deploy a virtual machine and the resources required to collect guest performance data in a Log Analytics workspace.
 
-## Task 1: Use a template to provision an infrastructure
+1. Download the **\Allfiles\Labs\11\az104-11-vm-template.json** lab file to your computer.
 
-In this task, you will deploy a virtual machine that will be used to test monitoring scenarios.
+1. Sign in to the [Azure portal](https://portal.azure.com).
 
-1. Download the **\\Allfiles\\Labs\\11\\az104-11-vm-template.json** lab files to your computer.
-
-1. Sign in to the **Azure portal** - `https://portal.azure.com`.
-
-1. From the Azure portal, search for and select `Deploy a custom template`.
+1. Search for and select **Deploy a custom template**.
 
 1. On the custom deployment page, select **Build your own template in the editor**.
 
-1. On the edit template page, select **Load file**.
+1. Select **Load file**.
 
-1. Locate and select the **\\Allfiles\\Labs\\11\\az104-11-vm-template.json** file and select **Open**.
+1. Locate and select **az104-11-vm-template.json**, and then select **Open**.
 
 1. Select **Save**.
 
-1. Use the following information to complete the custom deployment fields, leaving all other fields with their default values:
+1. Enter the following values, leaving all other settings at their default values.
 
-    | Setting       | Value         | 
-    | ---           | ---           |
-    | Subscription  | Your Azure subscription |
-    | Resource group| `az104-rg11` (If necessary, select **Create new**) |
-    | Region        | **East US** (If the deployment fails, change to another region and try again. This is due to quotas in different regions.) |
-    | Username      | `localadmin`   |
-    | Password      | Provide a complex password |
-    
-1. Select **Review + create**, then select **Create**.
+   | Setting | Value |
+   | --- | --- |
+   | Subscription | Your Azure subscription |
+   | Resource group | **az104-rg11**; create it if necessary |
+   | Region | **East US** |
+   | Username | `localadmin` |
+   | Password | A complex password |
 
-1. Wait for the deployment to finish, then click **Go to resource group**.
+1. Select **Review + create**, and then select **Create**.
 
-1. Review what resources were deployed. There should be one virtual network with one virtual machine.
+1. Wait for the deployment to finish, and then select **Go to resource group**.
 
-**Configure Azure Monitor for virtual machines (this will be used in the last task)**
+### Verify the deployment
 
-1. In the portal, search for and select **Virtual machines** and select **az104-vm0**. If the VM status shows **Stopped**, select **Start** and wait until the status changes to **Running**.
+1. On the **az104-rg11** resource group page, confirm that the following resources exist:
 
-1. In the portal, search for and select **Monitor**.
+   - Virtual machine **az104-vm0**
+   - Log Analytics workspace with a name that begins with **az104-law11-**
+   - Data collection rule **az104-dcr11**
+   - The virtual network, network interface, public IP address, network security group, and storage account
 
-1. Take a minute to review all the insights, detection, triage, and diagnosis tools that are available.
+1. Open **az104-vm0**.
 
-1. Select **View** in the **VM Insights** box, and then select **Configure Insights**.
+1. If the virtual machine status is **Stopped**, select **Start** and wait for its status to change to **Running**.
 
-1. Select **Enable** next to your virtual machine.
+1. Under **Settings**, select **Extensions + applications**.
 
-1. Ensure **Open Telemetry Metrics** is **not** checked. 
+1. Confirm that **AzureMonitorWindowsAgent** has a status of **Provisioning succeeded**.
 
-1. Select **Review + enable**, and then **Enable**.
+1. Return to **az104-rg11**, and then open **az104-dcr11**.
 
-1. It will take a few minutes for the virtual machine agent to install and onboard.
+1. Under **Configuration**, select **Resources**, and then confirm that **az104-vm0** is associated with the data collection rule.
 
-1. You can proceed to the next task, but continue to monitor the Notifications. If the on-boarding fails, try to enable it again.
+> [!NOTE]
+> Data can take several minutes to appear after the Azure Monitor Agent and data collection rule are deployed. Do not delete the virtual machine until you complete Task 2.
 
-   
-## Task 2: Create an alert
+## Task 2: Verify monitoring data with Azure Monitor Logs
 
-In this task, you create an alert for when a virtual machine is deleted. 
+In this task, you verify that the Azure Monitor Agent is sending heartbeat and VM performance data to the Log Analytics workspace. Complete this task before deleting the virtual machine.
 
-1. Continue on the **Monitor** page , select **Alerts**. 
+1. In **az104-rg11**, open the Log Analytics workspace whose name begins with **az104-law11-**.
 
-1. Select **Create +** and select **Alert rule**. 
+1. Under **General**, select **Logs**.
 
-1. Select the box for the subscription, then select **Apply**. This alert will apply to any virtual machines in the subscription. Alternatively, you could just specify one particular machine. 
+1. Close the welcome window or **Queries hub** if either appears.
 
-1. Select the **Condition** tab and then select the **See all signals** link.
+1. If necessary, select **KQL mode** from the query editor mode menu.
 
-1. Search for and select **Delete Virtual Machine (Virtual Machines)**. Notice the other built-in signals. Select **Apply**
+   ![Screenshot of the queries tab.](../media/az104-lab11-queries.png)
 
-1. In the **Alert logic** area (scroll down), review the **Event level** selections. Leave the default of **All selected**.
+1. Replace any text in the query editor with the following query, and then select **Run**.
 
-1. Review the **Status** selections. Leave the default of **All selected**.
+   ```kusto
+   Heartbeat
+   | where TimeGenerated > ago(30m)
+   | where Computer =~ "az104-vm0"
+   | summarize HeartbeatCount = count(), LastHeartbeat = max(TimeGenerated)
+       by Computer, Category
+   ```
 
-1. Leave the **Create an alert rule** pane open for the next task.
+1. Confirm that the results contain **az104-vm0**.
 
-## Task 3: Configure action group notifications
+   > [!NOTE]
+   > If the query returns no records, wait five minutes and run it again. If it still returns no records, verify that the Azure Monitor Agent extension succeeded and that the data collection rule is associated with the virtual machine.
 
-In this task, if the alert is triggered send an email notification to the operations team. 
+1. Replace the query with the following query, and then select **Run**.
 
-1. Continue working on your alert. Move to the **Actions** tab. Under **Select actions**, select **Use action groups**, and then select **+ Create action group**.
+   ```kusto
+   InsightsMetrics
+   | where TimeGenerated > ago(30m)
+   | where Computer =~ "az104-vm0"
+   | where Name == "UtilizationPercentage"
+   | summarize AverageUtilization = avg(Val)
+       by bin(TimeGenerated, 5m), Computer
+   | render timechart
+   ```
 
-    >**Did you know?** You can add up to five action groups to an alert rule. Action groups are executed concurrently, in no specific order. Multiple alert rules can use the same action group. 
+1. Confirm that the query returns VM performance data.
 
-1. On the **Basics** tab, enter the following values for each setting.
+> [!IMPORTANT]
+> Continue only after both queries return data. Previously ingested records remain in the workspace after the virtual machine is deleted, but the virtual machine can't send data that wasn't collected before deletion.
 
-    | Setting | Value |
-    |---------|---------|
-    | **Project details** |
-    | Subscription | your subscription |
-    | Resource group | **az104-rg11** |
-    | Region | **Global** (default) |
-    | **Instance details** |
-    | Action group name | `Alert the operations team` (must be unique in the resource group) |
-    | Display name | `AlertOpsTeam` |
+## Task 3: Create an action group
 
-1. Select **Next: Notifications** and enter the following values for each setting.
+In this task, you create an action group that sends an email notification when the alert is triggered.
 
-    | Setting | Value |
-    |---------|---------|
-    | Notification type | Select **Email/SMS message/Push/Voice** |
-    | Name | `VM was deleted` |
+1. In the Azure portal, search for and select **Monitor**.
 
-1. Select **Email**, and in the **Email** box, enter your email address, and then select **OK**. 
+1. Select **Alerts**, and then select **Action groups**.
 
-    >**Note:** You should receive an email notification saying you were added to an action group. There may be a few minutes delay, but that is a sure sign the rule has deployed.
+1. Select **Create**.
 
-1. Select **Review + create** and then **Create**.
-   
-1. Once the action group is created move to the **Next: Details >** tab and enter the following values for each setting.
+1. On the **Basics** tab, enter the following values.
 
-    | Setting | Value |
-    |---------|---------|
-    | Resource group | **az104-rg11** |
-    | Alert rule name | `VM was deleted` |
-    | Alert rule description | `A VM in your resource group was deleted` |
+   | Setting | Value |
+   | --- | --- |
+   | Subscription | Your Azure subscription |
+   | Resource group | **az104-rg11** |
+   | Region | **Global** |
+   | Action group name | `Alert the operations team` |
+   | Display name | `AlertOpsTeam` |
 
-1. Select **Review + create** to validate your input, then select **Create**.
+1. Select **Next: Notifications**.
 
-## Task 4: Trigger an alert and confirm it is working
+1. Enter the following notification settings.
 
-In this task, you trigger the alert and confirm a notification is sent. 
+   | Setting | Value |
+   | --- | --- |
+   | Notification type | **Email/SMS message/Push/Voice** |
+   | Name | `VM was deleted` |
 
->**Note:** If you delete the virtual machine before the alert rule deploys, the alert rule might not be triggered. 
+1. Select **Email**, enter your email address, and then select **OK**.
 
-1. In the portal, search for and select **Virtual machines**.
+1. Select **Review + create**, and then select **Create**.
 
-1. Check the box for the **az104-vm0** virtual machine.
+1. Confirm that you receive an email stating that you were added to the action group. Delivery can take several minutes.
 
-1. Select **Delete** from the menu bar.
+## Task 4: Create an Activity Log alert
 
-1. In the **Delete Resources** pane, type `delete` in the **Enter "delete" to confirm deletion** text field, then select **Delete**. When the secondary **Delete confirmation** dialog appears, select **Delete** again to confirm.
-   
-1. In the title bar, select the **Notifications** icon and wait until **vm0** is successfully deleted.
+In this task, you create an alert for the Activity Log operation that deletes a virtual machine.
 
-1. You should receive a notification email that reads, **Important notice: Azure Monitor alert VM was deleted was activated...** If not, open your email program and look for an email from azure-noreply@microsoft.com.
+> [!NOTE]
+> Virtual machine deletion is an Activity Log administrative operation. It is not a VM metric. The operation name is `Microsoft.Compute/virtualMachines/delete`.
 
-    ![Screenshot of alert email.](../media/az104-lab11-alert-email.png)
-   
-1. On the Azure portal resource menu, select **Monitor**, and then select **Alerts** in the menu on the left.
+1. In **Azure Monitor**, select **Alerts**.
 
-1. You should have three verbose alerts that were generated by deleting **vm0**.
+1. Select **Create**, and then select **Alert rule**.
 
-   >**Note:** It can take a few minutes for the alert email to be sent and for the alerts to be updated in the portal. If you don't want to wait, continue to the next task and then return. 
+1. On the **Scope** tab, select your subscription, and then select **Apply**.
 
-1. Select the name of one of the alerts (For example, **VM was deleted**). An **Alert details** pane appears that shows more details about the event.
+1. Select the **Condition** tab.
+
+1. Under **Select a signal**, select **Activity log**.
+
+1. Select **Delete Virtual Machine (Virtual Machines)**, and then select **Apply**.
+
+1. Under **Alert logic**, leave **Event level** and **Status** set to **All selected**.
+
+   > [!TIP]
+   > If **See all signals** reports **Couldn't load metric query signals**, try to select **Delete Virtual Machine (Virtual Machines)**, and then select **Apply**. If the condition is applied, continue with the portal steps. The message affects metric-query signals and doesn't prevent the Activity Log signal from working. If you can't select or apply **Delete Virtual Machine (Virtual Machines)**, use the **Cloud Shell fallback for a signal-loading error** below.
+
+1. Select the **Actions** tab.
+
+1. Under **Select actions**, select **Use action groups**.
+
+1. Select **Alert the operations team**, and then select **Select**.
+
+1. Select the **Details** tab, and then enter the following values.
+
+   | Setting | Value |
+   | --- | --- |
+   | Subscription | Your Azure subscription |
+   | Resource group | **az104-rg11** |
+   | Alert rule name | `VM was deleted` |
+   | Alert rule description | `A VM in the subscription was deleted` |
+   | Region | **Global** |
+   | Enable alert rule upon creation | Selected |
+
+1. Select **Review + create**, and then select **Create**.
+
+1. In **Azure Monitor**, select **Alerts** > **Alert rules**.
+
+1. Confirm that **VM was deleted** is enabled before continuing.
+
+### Cloud Shell fallback for a signal-loading error
+
+If the portal can't display the **Delete Virtual Machine** signal, use Azure Cloud Shell to create the same alert rule without the signal picker.
+
+1. Open **Cloud Shell** and select **Bash**.
+
+1. Run the following commands.
+
+   ```azurecli
+   subscriptionId=$(az account show --query id --output tsv)
+   actionGroupId=$(az monitor action-group show \
+     --resource-group az104-rg11 \
+     --name "Alert the operations team" \
+     --query id \
+     --output tsv)
+
+   az monitor activity-log alert create \
+     --name "VM was deleted" \
+     --resource-group az104-rg11 \
+     --scope "/subscriptions/$subscriptionId" \
+     --condition "category=Administrative and operationName=Microsoft.Compute/virtualMachines/delete" \
+     --action-group "$actionGroupId" \
+     --description "A VM in the subscription was deleted"
+   ```
+
+1. When the command succeeds, return to **Azure Monitor** > **Alerts** > **Alert rules**.
+
+1. Confirm that **VM was deleted** is enabled, and then continue to Task 5.
 
 ## Task 5: Configure an alert processing rule
 
-In this task, you create an alert rule to suppress notifications during a maintenance period. 
+In this task, you configure a rule that suppresses notifications during a planned maintenance period.
 
-1. Continue in the **Alerts** blade, select **Alert processing rules** and then **+ Create**. 
-   
-1. Select your **Subscription**, then select **Apply**.
-   
-1. Select **Next: Rule settings**, then select **Suppress notifications**.
-   
-1. Select **Next: Scheduling >**.
-   
-1. By default, the rule works all the time, unless you disable it or configure a schedule. You are going to define a rule to suppress notifications during overnight maintenance.
-Enter these settings for the scheduling of the alert processing rule:
+1. In **Azure Monitor**, select **Alerts** > **Alert processing rules**.
 
-    | Setting | Value |
-    |---------|---------|
-    | Apply the rule | At a specific time |
-    | Start | Enter today's date at 10 pm. |
-    | End | Enter tomorrow's date at 7 am. |
-    | Time zone | Select the local timezone. |
+1. Select **Create**.
 
-    ![Screenshot of the scheduling section of an alert processing rule](../media/az104-lab11-alert-processing-rule-schedule.png)
+1. On the **Scope** tab, select your subscription, and then select **Apply**.
 
-1. Select **Next: Details >** and enter these settings:
+1. Select **Next: Rule settings**.
 
-    | Setting | Value |
-    |---------|---------|
-    | Resource group | **az104-rg11** |
-    | Rule name | `Planned Maintenance` |
-    | Description | `Suppress notifications during planned maintenance.` |
+1. Select **Suppress notifications**.
 
-1. Select **Review + create** to validate your input, then select **Create**.
+1. Select **Next: Scheduling**.
 
-## Task 6: Use Azure Monitor log queries
+1. Configure the following schedule.
 
-In this task, you will use Azure Monitor to query the data captured from the virtual machine.
+   | Setting | Value |
+   | --- | --- |
+   | Apply the rule | **At a specific time** |
+   | Start | Today's date at 10:00 PM |
+   | End | Tomorrow's date at 7:00 AM |
+   | Time zone | Your local time zone |
 
-   >**Note:** It is okay if data doesn't appear. Focus on the steps to review monitoring information, including preconfigured and custom log queries. 
+   ![Screenshot of the scheduling section of an alert processing rule.](../media/az104-lab11-alert-processing-rule-schedule.png)
 
-1. In the Azure portal, search for and select `Monitor`, then click **Logs**.
+1. Select **Next: Details**.
 
-1. If necessary, close the splash screen. 
+1. Enter the following values.
 
-1. If a scope prompt appears, select your **Subscription** and click **Apply**. If no scope selector is shown, continue with the default scope.
+   | Setting | Value |
+   | --- | --- |
+   | Subscription | Your Azure subscription |
+   | Resource group | **az104-rg11** |
+   | Rule name | `Planned Maintenance` |
+   | Description | `Suppress notifications during planned maintenance.` |
 
-1. On the right side of the query editor, select the drop-down next to **Simple mode** and choose **KQL mode**.
+1. Select **Review + create**, and then select **Create**.
 
-    ![Screenshot of the queries tab.](../media/az104-lab11-queries.png)
+> [!NOTE]
+> The schedule is outside the normal time used to complete this lab, so it shouldn't suppress the deletion notification. If your current time falls within the configured window, adjust the schedule before triggering the alert.
 
-1. In the query editor, enter the following query and click **Run**.
+## Task 6: Trigger and verify the alert
 
-   ```
-   Heartbeat
-   | summarize Count = count() by Computer
-   ```
+In this task, you delete the virtual machine and confirm that the Activity Log alert is triggered.
 
-1. You should receive a heartbeat count for when the virtual machine was running.
+> [!IMPORTANT]
+> Confirm that the **VM was deleted** alert rule is enabled before deleting the virtual machine.
 
-1. Optionally, select **Queries hub** on the top toolbar to browse sample queries. If a **Virtual machines** category and **Count heartbeats** are available, run it for comparison.
+1. In the Azure portal, search for and select **Virtual machines**.
 
-1. Replace the query with this one, and then click **Run**. Review the resulting chart. 
+1. Select the checkbox for **az104-vm0**.
 
-   ```
-    InsightsMetrics
-    | where TimeGenerated > ago(1h)
-    | where Name == "UtilizationPercentage"
-    | summarize avg(Val) by bin(TimeGenerated, 5m), Computer //split up by computer
-    | render timechart
-   ```
+1. Select **Delete**.
 
-    >**Note:** If the query does not paste correctly, try pasting into Notepad and then copying and re-pasting into the query field.
+1. In the **Delete resources** pane, review the selected resources.
 
-1. As you have time, review and run other queries. 
+1. Enter `delete` in the confirmation field, and then select **Delete**.
 
-    >**Did you know?**: If you want to practice with other queries, there is a [Log Analytics Demo Environment](https://learn.microsoft.com/azure/azure-monitor/logs/log-analytics-tutorial#open-log-analytics).
-    
-    >**Did you know?**: Once you find a query you like, you can create an alert from it. 
+1. If a second confirmation dialog appears, select **Delete** again.
 
-## Cleanup your resources
+1. Select the **Notifications** icon and wait until the virtual machine is successfully deleted.
 
-If you are working with **your own subscription** take a minute to delete the lab resources. This will ensure resources are freed up and cost is minimized. The easiest way to delete the lab resources is to delete the lab resource group. 
+1. Wait for an email with a subject indicating that the **VM was deleted** Azure Monitor alert was activated.
 
-+ In the Azure portal, navigate to the **az104-rg11** resource group, select **Delete the resource group**, enter the resource group name to confirm, and then click **Delete**. When the secondary Delete confirmation dialog appears, click **Delete** again to complete the deletion.
-  
-+ Using Azure PowerShell, `Remove-AzResourceGroup -Name resourceGroupName`.
-  
-+ Using the CLI, `az group delete --name resourceGroupName`.
+   ![Screenshot of alert email.](../media/az104-lab11-alert-email.png)
 
-## Extend your learning with Copilot
-Copilot can assist you in learning how to use the Azure scripting tools. Copilot can also assist in areas not covered in the lab or where you need more information. Open an Edge browser and choose Copilot (top right) or navigate to *copilot.microsoft.com*. Take a few minutes to try these prompts.
+   > [!NOTE]
+   > Activity Log entries and alert notifications can take several minutes to appear.
 
-+ What are the basic configuration steps to be alerted in Azure when a virtual machine is down?
-+ How can I be notified when an Azure alert is triggered?
-+ Construct an Azure Monitor query to provide virtual machine CPU performance information.
+1. In **Azure Monitor**, select **Alerts**.
 
-## Learn more with self-paced training
+1. Confirm that an alert named **VM was deleted** appears.
 
-+ [Configure alerts and responses](https://learn.microsoft.com/training/modules/configure-alerts-responses/). Understand how to configure and manage alerts and responses in order to proactively manage notifications about potential issues before those issues become problems for your users.
-+ [Monitor your Azure virtual machines with Azure Monitor](https://learn.microsoft.com/en-us/training/modules/monitor-azure-vm-using-diagnostic-data/). Monitor your Azure VMs by using Azure Monitor to collect and analyze VM host and client metrics and logs.
+1. Open the alert and review its scope, condition, operation name, status, and history.
+
+1. Optionally, return to the Log Analytics workspace and rerun the Task 2 queries. The records collected before deletion remain available according to the workspace retention period.
+
+## Clean up resources
+
+If you're using your own subscription, delete the lab resource group to avoid unnecessary charges.
+
+1. In the Azure portal, open **az104-rg11**.
+
+1. Select **Delete resource group**.
+
+1. Enter `az104-rg11` to confirm the deletion.
+
+1. Select **Delete**, and then confirm the deletion if prompted.
+
+You can also use Azure PowerShell:
+
+```azurepowershell
+Remove-AzResourceGroup -Name az104-rg11
+```
+
+Or Azure CLI:
+
+```azurecli
+az group delete --name az104-rg11
+```
 
 ## Key takeaways
 
-Congratulations on completing the lab. Here are the main takeaways for this lab. 
-
-+ Alerts help you detect and address issues before users notice there might be a problem with your infrastructure or application.
-+ You can alert on any metric or log data source in the Azure Monitor data platform.
-+ An alert rule monitors your data and captures a signal that indicates something is happening on the specified resource.
-+ An alert is triggered if the conditions of the alert rule are met. Several actions (email, SMS, push, voice) can be triggered.
-+ Action groups include individuals that should be notified of an alert.
+- Host and recommended VM metrics don't prove that logs-based VM monitoring is configured.
+- Azure Monitor Logs requires a Log Analytics workspace and an appropriate data collection path.
+- Azure Monitor Agent uses a data collection rule and association to send guest monitoring data to a workspace.
+- Monitoring ingestion should be verified before deleting the resource that generates the data.
+- Virtual machine deletion is an Activity Log administrative operation rather than a VM metric.
+- Action groups define notification recipients, while alert processing rules control when notifications are delivered.
