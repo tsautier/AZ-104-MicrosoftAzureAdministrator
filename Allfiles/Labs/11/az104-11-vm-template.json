@@ -63,7 +63,7 @@
     },
     "vmSize": {
       "type": "string",
-      "defaultValue": "Standard_D2s_v3",
+      "defaultValue": "Standard_D2s_v5",
       "metadata": {
         "description": "VM size"
       }
@@ -109,51 +109,49 @@
       "metadata": {
         "description": "Network security group name"
       }
+    },
+    "dataCollectionRuleName": {
+      "type": "string",
+      "defaultValue": "az104-dcr11",
+      "metadata": {
+        "description": "Name of the VM Insights data collection rule."
+      }
     }
   },
   "variables": {
     "vnetID": "[resourceId(parameters('virtualNetworkResourceGroup'), 'Microsoft.Network/virtualNetworks', parameters('virtualNetworkName'))]",
     "subnetRef": "[resourceId('Microsoft.Network/virtualNetworks/subnets', parameters('virtualNetworkName'), parameters('subnet0Name'))]",
+    "logAnalyticsWorkspaceName": "[concat('az104-law11-', uniqueString(resourceGroup().id))]",
     "storageAccountName": "[concat('az10411', uniqueString(subscription().subscriptionId))]",
     "storageAccountType": "Standard_LRS",
     "numberOfInstances": 1,
     "computeAPIVersion": "2018-10-01",
     "networkAPIVersion": "2018-12-01",
-    "storageAPIVersion": "2019-04-01"
+    "storageAPIVersion": "2019-04-01",
+    "dataCollectionRuleAssociationName": "az104-vm-insights-association"
   },
   "resources": [
     {
-      "type": "Microsoft.Network/networkInterfaces",
-      "name": "[concat(parameters('nicNamePrefix'), copyindex())]",
-      "apiVersion": "[variables('networkAPIVersion')]",
+      "type": "Microsoft.Network/networkSecurityGroups",
+      "name": "[parameters('nsgName')]",
+      "apiVersion": "[variables('networkApiVersion')]",
       "location": "[resourceGroup().location]",
-      "copy": {
-        "name": "nicLoop",
-        "count": "[variables('numberOfInstances')]"
-      },
-      "dependsOn": [
-        "[resourceId('Microsoft.Network/virtualNetworks/',parameters('virtualNetworkName'))]",
-        "[resourceId('Microsoft.Network/networkSecurityGroups/',parameters('nsgName'))]",
-        "pipLoop"
-      ],
       "properties": {
-        "ipConfigurations": [
+        "securityRules": [
           {
-            "name": "ipconfig1",
+            "name": "default-allow-rdp",
             "properties": {
-              "privateIPAllocationMethod": "Dynamic",
-              "subnet": {
-                "id": "[variables('subnetRef')]"
-              },
-              "publicIpAddress": {
-                "id": "[resourceId('Microsoft.Network/publicIpAddresses',concat(parameters('pipNamePrefix'),copyindex()))]"
-              }
+              "priority": 1000,
+              "access": "Allow",
+              "direction": "Inbound",
+              "protocol": "Tcp",
+              "sourcePortRange": "*",
+              "destinationPortRange": "3389",
+              "sourceAddressPrefix": "*",
+              "destinationAddressPrefix": "*"
             }
           }
-        ],
-        "networkSecurityGroup": {
-          "id": "[resourceId('Microsoft.Network/networkSecurityGroups', parameters('nsgName'))]"
-        }
+        ]
       }
     },
     {
@@ -178,7 +176,7 @@
       }
     },
     {
-      "type": "Microsoft.Network/publicIpAddresses",
+      "type": "Microsoft.Network/publicIPAddresses",
       "name": "[concat(parameters('pipNamePrefix'), copyindex())]",
       "apiVersion": "[variables('networkApiVersion')]",
       "copy": {
@@ -187,30 +185,41 @@
       },
       "location": "[resourceGroup().location]",
       "sku": {
-        "name":"Standard"
+        "name": "Standard"
       },
       "properties": {
-        "publicIpAllocationMethod": "Static"
+        "publicIPAllocationMethod": "Static"
       }
     },
     {
-      "type": "Microsoft.Network/networkSecurityGroups",
-      "name": "[parameters('nsgName')]",
-      "apiVersion": "[variables('networkApiVersion')]",
+      "type": "Microsoft.Network/networkInterfaces",
+      "name": "[concat(parameters('nicNamePrefix'), copyindex())]",
+      "apiVersion": "[variables('networkAPIVersion')]",
       "location": "[resourceGroup().location]",
+      "copy": {
+        "name": "nicLoop",
+        "count": "[variables('numberOfInstances')]"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/virtualNetworks/',parameters('virtualNetworkName'))]",
+        "[resourceId('Microsoft.Network/networkSecurityGroups/',parameters('nsgName'))]",
+        "pipLoop"
+      ],
       "properties": {
-        "securityRules": [
+        "networkSecurityGroup": {
+          "id": "[resourceId('Microsoft.Network/networkSecurityGroups', parameters('nsgName'))]"
+        },
+        "ipConfigurations": [
           {
-            "name": "default-allow-rdp",
+            "name": "ipconfig1",
             "properties": {
-              "priority": 1000,
-              "sourceAddressPrefix": "*",
-              "protocol": "Tcp",
-              "destinationPortRange": "3389",
-              "access": "Allow",
-              "direction": "Inbound",
-              "sourcePortRange": "*",
-              "destinationAddressPrefix": "*"
+              "privateIPAllocationMethod": "Dynamic",
+              "subnet": {
+                "id": "[variables('subnetRef')]"
+              },
+              "publicIPAddress": {
+                "id": "[resourceId('Microsoft.Network/publicIpAddresses',concat(parameters('pipNamePrefix'),copyindex()))]"
+              }
             }
           }
         ]
@@ -228,6 +237,65 @@
       "properties": {}
     },
     {
+      "type": "Microsoft.OperationalInsights/workspaces",
+      "apiVersion": "2023-09-01",
+      "name": "[variables('logAnalyticsWorkspaceName')]",
+      "location": "[resourceGroup().location]",
+      "properties": {
+        "sku": {
+          "name": "PerGB2018"
+        },
+        "retentionInDays": 30,
+        "publicNetworkAccessForIngestion": "Enabled",
+        "publicNetworkAccessForQuery": "Enabled"
+      }
+    },
+    {
+      "type": "Microsoft.Insights/dataCollectionRules",
+      "apiVersion": "2022-06-01",
+      "name": "[parameters('dataCollectionRuleName')]",
+      "location": "[resourceGroup().location]",
+      "dependsOn": [
+        "[resourceId('Microsoft.OperationalInsights/workspaces', variables('logAnalyticsWorkspaceName'))]"
+      ],
+      "properties": {
+        "description": "Data collection rule for logs-based VM Insights.",
+        "dataSources": {
+          "performanceCounters": [
+            {
+              "name": "VMInsightsPerfCounters",
+              "streams": [
+                "Microsoft-InsightsMetrics"
+              ],
+              "scheduledTransferPeriod": "PT1M",
+              "samplingFrequencyInSeconds": 60,
+              "counterSpecifiers": [
+                "\\VmInsights\\DetailedMetrics"
+              ]
+            }
+          ]
+        },
+        "destinations": {
+          "logAnalytics": [
+            {
+              "workspaceResourceId": "[resourceId('Microsoft.OperationalInsights/workspaces', variables('logAnalyticsWorkspaceName'))]",
+              "name": "VMInsightsPerf-Logs-Dest"
+            }
+          ]
+        },
+        "dataFlows": [
+          {
+            "streams": [
+              "Microsoft-InsightsMetrics"
+            ],
+            "destinations": [
+              "VMInsightsPerf-Logs-Dest"
+            ]
+          }
+        ]
+      }
+    },
+    {
       "type": "Microsoft.Compute/virtualMachines",
       "name": "[concat(parameters('vmNamePrefix'), copyindex())]",
       "apiVersion": "[variables('computeAPIVersion')]",
@@ -236,6 +304,9 @@
         "count": "[variables('numberOfInstances')]"
       },
       "location": "[resourceGroup().location]",
+      "identity": {
+        "type": "SystemAssigned"
+      },
       "dependsOn": [
         "nicLoop",
         "[resourceId('Microsoft.Storage/storageAccounts/',variables('storageAccountName'))]"
@@ -259,7 +330,7 @@
           "osDisk": {
             "createOption": "FromImage",
             "managedDisk": {
-               "storageAccountType": "Standard_LRS"
+              "storageAccountType": "Standard_LRS"
             }
           }
         },
@@ -275,8 +346,60 @@
             "enabled": "true",
             "storageUri": "[concat('https://', variables('storageAccountName'), '.blob.core.windows.net')]"
           }
-        } 
+        }
+      }
+    },
+    {
+      "type": "Microsoft.Compute/virtualMachines/extensions",
+      "apiVersion": "2023-09-01",
+      "name": "[concat(parameters('vmNamePrefix'), copyindex(), '/AzureMonitorWindowsAgent')]",
+      "location": "[resourceGroup().location]",
+      "copy": {
+        "name": "azureMonitorAgentLoop",
+        "count": "[variables('numberOfInstances')]"
+      },
+      "dependsOn": [
+        "virtualMachineLoop"
+      ],
+      "properties": {
+        "publisher": "Microsoft.Azure.Monitor",
+        "type": "AzureMonitorWindowsAgent",
+        "typeHandlerVersion": "1.0",
+        "autoUpgradeMinorVersion": true,
+        "enableAutomaticUpgrade": true
+      }
+    },
+    {
+      "type": "Microsoft.Insights/dataCollectionRuleAssociations",
+      "apiVersion": "2022-06-01",
+      "name": "[concat(variables('dataCollectionRuleAssociationName'), '-', copyindex())]",
+      "scope": "[format('Microsoft.Compute/virtualMachines/{0}', concat(parameters('vmNamePrefix'), copyindex()))]",
+      "copy": {
+        "name": "dataCollectionRuleAssociationLoop",
+        "count": "[variables('numberOfInstances')]"
+      },
+      "dependsOn": [
+        "azureMonitorAgentLoop",
+        "[resourceId('Microsoft.Insights/dataCollectionRules', parameters('dataCollectionRuleName'))]"
+      ],
+      "properties": {
+        "description": "Associates the logs-based VM Insights data collection rule with the virtual machine.",
+        "dataCollectionRuleId": "[resourceId('Microsoft.Insights/dataCollectionRules', parameters('dataCollectionRuleName'))]"
       }
     }
-  ]
+  ],
+  "outputs": {
+    "virtualMachineName": {
+      "type": "string",
+      "value": "[concat(parameters('vmNamePrefix'), '0')]"
+    },
+    "logAnalyticsWorkspaceName": {
+      "type": "string",
+      "value": "[variables('logAnalyticsWorkspaceName')]"
+    },
+    "dataCollectionRuleName": {
+      "type": "string",
+      "value": "[parameters('dataCollectionRuleName')]"
+    }
+  }
 }
