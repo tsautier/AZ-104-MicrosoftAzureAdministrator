@@ -78,10 +78,10 @@ The organization plans a large amount of growth for core services. In this task,
 
 	| **Subnet**             | **Option**           | **Value**              |
 	| ---------------------- | -------------------- | ---------------------- |
-	| SharedServicesSubnet   | Subnet name          | `SharedServicesSubnet`   |
+	| SharedServicesSubnet   | Name          | `SharedServicesSubnet`   |
 	|                        | Starting address		| `10.20.10.0`          |
 	|						 | Size					| `/24`	|
-	| DatabaseSubnet         | Subnet name          | `DatabaseSubnet`         |
+	| DatabaseSubnet         | Name          | `DatabaseSubnet`         |
 	|                        | Starting address		| `10.20.20.0`        |
 	|						 | Size					| `/24`	|
 
