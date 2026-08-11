@@ -130,7 +130,7 @@ In this task, you will create a blob container and upload an image. Blob contain
 
 ### Manage blob uploads
 
-1. In the storage account's left menu, select **Configuration** and set **Allow storage account key access** to **Enabled**, then click **Save**. 
+1. In the storage account's left menu, under **Settings**, select **Configuration** and set **Allow storage account key access** to **Enabled**, then click **Save**. 
 
 1. Next, navigate to **Access Control (IAM)**, click **Add role assignment**, select the **Storage Blob Data Contributor** role, and assign it to your user account, then click **Review + assign**.
 
