@@ -137,7 +137,7 @@ In this task, you work with the Azure Cloud Shell and Azure PowerShell. Azure Cl
 
    ![Screenshot of cloud shell icon.](../media/az104-lab03-cloudshell-icon.png)
 
-1. When prompted to select either **Bash** or **PowerShell**, select **PowerShell**. 
+1. When prompted to select either **Bash** or **PowerShell**, select **PowerShell**. If Cloud Shell fully loads into Bash mode, select **Switch to PowerShell**.
 
     >**Did you know?**  If you mostly work with Linux systems, Bash (CLI) feels more familiar. If you mostly work with Windows systems, Azure PowerShell feels more familiar. 
 
@@ -145,13 +145,11 @@ In this task, you work with the Azure Cloud Shell and Azure PowerShell. Azure Cl
 
     >**Note:** Wait for the PowerShell prompt to appear before proceeding.
 
-1. Select **Settings** (top bar) and then **Go to classic version**.
-
-1. Select the **Upload/Download files** icon (top bar) and then select **Upload**.
+1. Select the **Manage files** icon (top bar) and then select **Upload**.
 
 1. Upload both the template and parameters files from the **Downloads** directory. 
 
-1. Select the **Editor (curly brackets)** icon and navigate to the template JSON file on the left in the navigation pane.
+1. Select the **Editor (pencil)** icon and navigate to the template JSON file on the left in the navigation pane.
 
 1. Make a change. For example, change the disk name to **az104-disk3**. Use **Ctrl+S** to save your changes, then **Ctrl+Q** to close the editor. 
 
@@ -181,7 +179,7 @@ In this task, you work with the Azure Cloud Shell and Azure PowerShell. Azure Cl
    
 ## Task 4: Deploy a template with the CLI 
 
-1. Continue in the **Cloud Shell** select **Bash**. **Confirm** your choice.
+1. Continue in the **Cloud Shell** select **Switch to Bash**. **Confirm** your choice.
 
 1. If you have multiple subscriptions, first ensure the correct subscription context is set by running `az account show` to confirm the active subscription. If it does not match the subscription containing **az104-rg3**, run `az account set --subscription <your-subscription-id>` before proceeding. This is especially important when Cloud Shell is running in ephemeral mode, as switching from PowerShell to Bash may reset the subscription context.
 
@@ -196,7 +194,7 @@ In this task, you work with the Azure Cloud Shell and Azure PowerShell. Azure Cl
     ls
     ```
 
-1. Select the **Editor** (curly brackets) icon and navigate to the template JSON file.
+1. Select the **Editor** (pencil) icon and navigate to the template JSON file.
 
 1. Make a change. For example, change the disk name to **az104-disk4**. Use **Ctrl+S** to save your changes, then **Ctrl+Q** to close the editor. 
 
@@ -224,7 +222,7 @@ In this task, you will use a Bicep file to deploy a managed disk. Bicep is a dec
 
 1. Continue working in the **Cloud Shell** in a **Bash** session.
 
-1. Select **Upload/Download files** and then **Upload** the Bicep file to Cloud Shell. 
+1. Select **Manage files** and then **Upload** the Bicep file to Cloud Shell. 
 
 1. Select **Open editor**.
 
