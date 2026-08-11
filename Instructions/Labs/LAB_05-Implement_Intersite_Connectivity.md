@@ -250,7 +250,7 @@ In this task, you want to control network traffic between the perimeter subnet a
     | Resource group | `az104-rg5`  |
     | Region | **East US** |
     | Name | `rt-CoreServices` |
-    | Propagate gateway routes | **No** |
+    | Enable peering routes | **Yes** |
 
 1. After the route table deploys, Search for and select the **Route Tables**.
    
